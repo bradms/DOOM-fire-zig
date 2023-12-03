@@ -125,21 +125,20 @@ const sep = '▏';
 const MAX_COLOR = 256;
 const LAST_COLOR = MAX_COLOR - 1;
 
-var fg: [MAX_COLOR][]u8 = undefined;
-var bg: [MAX_COLOR][]u8 = undefined;
+const fg = blk: {
+    var result: [MAX_COLOR][]const u8 = undefined;
+    for (0..MAX_COLOR) |idx| result[idx] = std.fmt.comptimePrint("{s}38;5;{d}m", .{ csi, idx });
+    break :blk result;
+};
+const bg = blk: {
+    var result: [MAX_COLOR][]const u8 = undefined;
+    for (0..MAX_COLOR) |idx| result[idx] = std.fmt.comptimePrint("{s}48;5;{d}m", .{ csi, idx });
+    break :blk result;
+};
+
+const frame_reset = std.fmt.comptimePrint("{s}{s}{s}", .{ cursor_home, bg[0], fg[0] });
 
 //// functions
-
-// cache fg/bg ansi codes
-pub fn initColor() void {
-    for (0..MAX_COLOR) |color_idx| {
-        fg[color_idx] = std.fmt.allocPrint(allocator, "{s}38;5;{d}m", .{ csi, color_idx }) catch unreachable;
-        bg[color_idx] = std.fmt.allocPrint(allocator, "{s}48;5;{d}m", .{ csi, color_idx }) catch unreachable;
-    }
-}
-
-//todo - free bg/fg color ache
-// defer freeColor(); just too lazy right now.
 
 //get terminal size given a tty
 pub fn getTermSz(tty: std.os.fd_t) !TermSz {
@@ -159,7 +158,6 @@ pub fn initTermSize() !void {
 
 pub fn initTerm() !void {
     emit(term_on);
-    initColor();
     try initTermSize();
     try initRNG();
 }
@@ -449,9 +447,9 @@ pub fn initBuf() void {
     const px_char_sz = px.len;
     const px_color_sz = bg[LAST_COLOR].len + fg[LAST_COLOR].len;
     const px_sz = px_color_sz + px_char_sz;
-    const screen_sz: u64 = @as(u64, px_sz * term_sz.width * term_sz.width);
-    const overflow_sz: u64 = px_char_sz * 100;
-    const bs_sz: u64 = screen_sz + overflow_sz;
+    const screen_sz = px_sz * term_sz.width * term_sz.width;
+    const overflow_sz = px_char_sz * 100;
+    const bs_sz = screen_sz + overflow_sz;
 
     bs = allocator.alloc(u8, bs_sz * 2) catch unreachable;
     t_start = std.time.milliTimestamp();
@@ -534,12 +532,6 @@ pub fn showDoomFire() void {
     emit(color_def);
     emit(screen_clear);
 
-    //scope cache - frame reset
-    const init_frame = std.mem.concat(allocator, u8, &.{
-        cursor_home, bg[0], fg[0],
-    }) catch unreachable;
-    defer allocator.free(init_frame);
-
     //scope cache - fire 2 screen buffer
     var px_hi: u8 = fire_black;
     var px_lo: u8 = fire_black;
@@ -579,7 +571,7 @@ pub fn showDoomFire() void {
 
         //paint fire buf
         resetBuf();
-        drawBuf(init_frame);
+        drawBuf(frame_reset);
 
         // for each row
         var frame_y: u16 = 0;
