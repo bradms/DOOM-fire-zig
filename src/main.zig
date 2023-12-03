@@ -71,9 +71,7 @@ pub fn emit(s: []const u8) void {
 
 // format a string then print
 pub fn emitFmt(comptime s: []const u8, args: anytype) void {
-    const t = std.fmt.allocPrint(allocator, s, args) catch unreachable;
-    defer allocator.free(t);
-    emit(t);
+    stdout.print(s, args) catch unreachable;
 }
 
 ///////////////////////////////////
@@ -134,8 +132,7 @@ var bg: [MAX_COLOR][]u8 = undefined;
 
 // cache fg/bg ansi codes
 pub fn initColor() void {
-    var color_idx: u16 = 0;
-    while (color_idx < MAX_COLOR) : (color_idx += 1) {
+    for (0..MAX_COLOR) |color_idx| {
         fg[color_idx] = std.fmt.allocPrint(allocator, "{s}38;5;{d}m", .{ csi, color_idx }) catch unreachable;
         bg[color_idx] = std.fmt.allocPrint(allocator, "{s}48;5;{d}m", .{ csi, color_idx }) catch unreachable;
     }
@@ -253,8 +250,8 @@ pub fn checkTermSz() void {
 }
 
 /// Part II - Show terminal capabilities
-/// 
-/// Since user terminals vary in capabilities, handy to have a screen that renders ACTUAL colors 
+///
+/// Since user terminals vary in capabilities, handy to have a screen that renders ACTUAL colors
 /// and exercises various terminal commands prior to DOOM fire.
 ///
 pub fn showTermSz() void {
@@ -305,9 +302,8 @@ pub fn show216Colors() void {
     //show remaining of colors in 6 blocks of 6x6
 
     // 6 rows of color
-    var color_shift: u8 = 0;
-    while (color_shift < 6) : (color_shift += 1) {
-        color_addendum = color_shift * 36 + 16;
+    for (0..6) |color_shift| {
+        color_addendum = @intCast(color_shift * 36 + 16);
 
         // colors are pre-organized into blocks
         var color_idx: u8 = 0;
@@ -337,8 +333,7 @@ pub fn showGrayscale() void {
     var fg_idx: u8 = 15;
     emit(fg[fg_idx]);
 
-    var bg_idx: u16 = 232;
-    while (bg_idx < 256) : (bg_idx += 1) {
+    for (232..256) |bg_idx| {
         if (bg_idx > 243) {
             fg_idx = 0;
             emit(fg[fg_idx]);
@@ -373,13 +368,9 @@ pub fn scrollMarquee() void {
     const fade_seq = [_]u8{ 222, 221, 220, 215, 214, 184, 178, 130, 235, 58, 16 };
     const fade_len: u8 = fade_seq.len;
 
-    var fade_idx: u8 = 0;
-    var txt_idx: u8 = 0;
-
-    while (txt_idx < txt_len) : (txt_idx += 1) {
+    for (0..txt_len) |txt_idx| {
         //fade in
-        fade_idx = 0;
-        while (fade_idx < fade_len) : (fade_idx += 1) {
+        for (0..fade_len) |fade_idx| {
             //reset to 1,1 of marquee
             emit(cursor_load);
             emit(bg[bg_idx]);
@@ -401,7 +392,7 @@ pub fn scrollMarquee() void {
         std.time.sleep(1000 * std.time.ns_per_ms);
 
         //fade out
-        fade_idx = fade_len - 1;
+        var fade_idx: usize = fade_len - 1;
         while (fade_idx > 0) : (fade_idx -= 1) {
             //reset to 1,1 of marquee
             emit(cursor_load);
@@ -433,7 +424,7 @@ pub fn showTermCap() void {
 }
 
 /// DOOM Fire
-/// Slowest - raw emit() 
+/// Slowest - raw emit()
 /// Slower  - raw emit() + \n
 /// Below   - moderately faster
 
@@ -532,16 +523,10 @@ pub fn showDoomFire() void {
     defer allocator.free(screen_buf);
 
     //init buffer
-    var buf_idx: u16 = 0;
-    while (buf_idx < FIRE_SZ) : (buf_idx += 1) {
-        screen_buf[buf_idx] = fire_black;
-    }
+    @memset(screen_buf[0..FIRE_SZ], fire_black);
 
     //last row is white...white is "fire source"
-    buf_idx = 0;
-    while (buf_idx < FIRE_W) : (buf_idx += 1) {
-        screen_buf[FIRE_LAST_ROW + buf_idx] = fire_white;
-    }
+    @memset(screen_buf[FIRE_LAST_ROW .. FIRE_LAST_ROW + FIRE_W], fire_white);
 
     //reset terminal
     emit(cursor_home);
@@ -549,24 +534,13 @@ pub fn showDoomFire() void {
     emit(color_def);
     emit(screen_clear);
 
-    //scope cache ////////////////////
-    //scope cache - update fire buf
-    var doFire_x: u16 = 0;
-    var doFire_y: u16 = 0;
-    var doFire_idx: u16 = 0;
-
-    //scope cache - spread fire
-    var spread_px: u8 = 0;
-    var spread_rnd_idx: u8 = 0;
-    var spread_dst: u16 = 0;
-
     //scope cache - frame reset
-    const init_frame = std.fmt.allocPrint(allocator, "{s}{s}{s}", .{ cursor_home, bg[0], fg[0] }) catch unreachable;
+    const init_frame = std.mem.concat(allocator, u8, &.{
+        cursor_home, bg[0], fg[0],
+    }) catch unreachable;
     defer allocator.free(init_frame);
 
     //scope cache - fire 2 screen buffer
-    var frame_x: u16 = 0;
-    var frame_y: u16 = 0;
     var px_hi: u8 = fire_black;
     var px_lo: u8 = fire_black;
     var px_prev_hi = px_hi;
@@ -577,50 +551,41 @@ pub fn showDoomFire() void {
     defer freeBuf();
 
     //when there is an ez way to poll for key stroke...do that.  for now, ctrl+c!
-    var ok = true;
-    while (ok) {
-
+    while (true) {
         //update fire buf
-        doFire_x = 0;
-        while (doFire_x < FIRE_W) : (doFire_x += 1) {
-            doFire_y = 0;
-            while (doFire_y < FIRE_H) : (doFire_y += 1) {
-                doFire_idx = doFire_y * FIRE_W + doFire_x;
+        for (0..FIRE_H) |y| for (0..FIRE_W) |x| {
+            const idx = y * FIRE_W + x;
 
-                //spread fire
-                spread_px = screen_buf[doFire_idx];
+            //spread fire
+            const spread_px = screen_buf[idx];
 
-                //bounds checking
-                if ((spread_px == 0) and (doFire_idx >= FIRE_W)) {
-                    screen_buf[doFire_idx - FIRE_W] = 0;
-                } else {
-                    spread_rnd_idx = rand.intRangeAtMost(u8, 0, 3);
-                    if (doFire_idx >= (spread_rnd_idx + 1)) {
-                        spread_dst = doFire_idx - spread_rnd_idx + 1;
-                    } else {
-                        spread_dst = doFire_idx;
-                    }
-                    if (spread_dst >= FIRE_W) {
-                        if (spread_px > (spread_rnd_idx & 1)) {
-                            screen_buf[spread_dst - FIRE_W] = spread_px - (spread_rnd_idx & 1);
-                        } else {
-                            screen_buf[spread_dst - FIRE_W] = 0;
-                        }
-                    }
+            //bounds checking
+            if ((spread_px == 0) and (idx >= FIRE_W)) {
+                screen_buf[idx - FIRE_W] = 0;
+            } else {
+                const spread_rnd_idx = rand.intRangeAtMost(u8, 0, 3);
+                const spread_dst = if (spread_rnd_idx >= (spread_rnd_idx + 1))
+                    idx - spread_rnd_idx + 1
+                else
+                    idx;
+                if (spread_dst >= FIRE_W) {
+                    screen_buf[spread_dst - FIRE_W] = if (spread_px > (spread_rnd_idx & 1))
+                        spread_px - (spread_rnd_idx & 1)
+                    else
+                        0;
                 }
             }
-        }
+        };
 
         //paint fire buf
         resetBuf();
         drawBuf(init_frame);
 
         // for each row
-        frame_y = 0;
+        var frame_y: u16 = 0;
         while (frame_y < FIRE_H) : (frame_y += 2) { // 'paint' two rows at a time because of half height char
             // for each col
-            frame_x = 0;
-            while (frame_x < FIRE_W) : (frame_x += 1) {
+            for (0..FIRE_W) |frame_x| {
                 //each character rendered is actually to rows of 'pixels'
                 // - "hi" (current px row => fg char)
                 // - "low" (next row => bg color)
