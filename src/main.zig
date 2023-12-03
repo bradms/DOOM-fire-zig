@@ -85,7 +85,7 @@ const TIOCGWINSZ = c.TIOCGWINSZ; // ioctl flag
 
 //term size
 const TermSz = struct { height: usize, width: usize };
-var term_sz: TermSz = .{ .height = 0, .width = 0 }; // set via initTermSz
+var term_sz: TermSz = .{ .height = 0, .width = 0 }; // set via initTermSize
 
 //ansi escape codes
 const esc = "\x1B";
