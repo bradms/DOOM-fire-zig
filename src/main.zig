@@ -67,8 +67,8 @@ pub fn emit(s: []const u8) void {
 }
 
 // format a string then print
-pub fn emitFmt(comptime s: []const u8, args: anytype) void {
-    stdout.print(s, args) catch unreachable;
+pub fn emitFmt(comptime format: []const u8, args: anytype) void {
+    stdout.print(format, args) catch unreachable;
 }
 
 ///////////////////////////////////
