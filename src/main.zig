@@ -4,9 +4,6 @@
 // Copy/paste as it helps!
 //
 const std = @import("std");
-const c = @cImport({
-    @cInclude("sys/ioctl.h");
-});
 
 const allocator = std.heap.page_allocator;
 
@@ -80,9 +77,6 @@ pub fn emitFmt(comptime s: []const u8, args: anytype) void {
 
 //// Settings
 
-// Get this value from libc.
-const TIOCGWINSZ = c.TIOCGWINSZ; // ioctl flag
-
 //term size
 const TermSz = struct { height: usize, width: usize };
 var term_sz: TermSz = .{ .height = 0, .width = 0 }; // set via initTermSize
@@ -142,12 +136,12 @@ const frame_reset = std.fmt.comptimePrint("{s}{s}{s}", .{ cursor_home, bg[0], fg
 
 //get terminal size given a tty
 pub fn getTermSz(tty: std.os.fd_t) !TermSz {
-    var winsz = c.winsize{ .ws_col = 0, .ws_row = 0, .ws_xpixel = 0, .ws_ypixel = 0 };
-    const rv = std.os.system.ioctl(tty, TIOCGWINSZ, @intFromPtr(&winsz));
-    const err = std.os.errno(rv);
-    if (rv == 0) {
+    var winsz = std.mem.zeroes(std.os.system.winsize);
+    const rc = std.os.system.ioctl(tty, std.os.system.T.IOCGWINSZ, @intFromPtr(&winsz));
+    if (rc == 0) {
         return TermSz{ .height = winsz.ws_row, .width = winsz.ws_col };
     } else {
+        const err = std.os.errno(rc);
         return std.os.unexpectedErrno(err);
     }
 }
