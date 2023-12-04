@@ -548,10 +548,10 @@ pub fn showDoomFire() void {
                 screen_buf[idx - FIRE_W] = 0;
             } else {
                 const spread_rnd_idx = rand.intRangeAtMost(u8, 0, 3);
-                const spread_dst = if (spread_rnd_idx >= (spread_rnd_idx + 1))
-                    idx - spread_rnd_idx + 1
+                const spread_dst = if (spread_rnd_idx < (spread_rnd_idx + 1))
+                    idx
                 else
-                    idx;
+                    idx - spread_rnd_idx + 1;
                 if (spread_dst >= FIRE_W) {
                     screen_buf[spread_dst - FIRE_W] = if (spread_px > (spread_rnd_idx & 1))
                         spread_px - (spread_rnd_idx & 1)
