@@ -246,8 +246,18 @@ pub fn checkTermSz() void {
 /// and exercises various terminal commands prior to DOOM fire.
 ///
 pub fn showTermSz() void {
-    //todo - show os, os ver, zig ver
-    emitFmt("Screen size: {d}w x {d}h\n\n", .{ term_sz.width, term_sz.height });
+    const builtin = @import("builtin");
+
+    //todo - os ver
+    emitFmt(
+        \\Screen size: {d}w x {d}h
+        \\OS: {s}
+        \\Zig version: {s}
+        \\
+    , .{
+        term_sz.width,            term_sz.height,
+        @tagName(builtin.os.tag), builtin.zig_version_string,
+    });
 }
 
 pub fn showLabel(label: []const u8) void {
