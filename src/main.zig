@@ -128,6 +128,9 @@ const bg = blk: {
 
 const frame_reset = std.fmt.comptimePrint("{s}{s}{s}", .{ cursor_home, bg[0], fg[0] });
 
+// TODO does this actually need to be atomic?
+var running = std.atomic.Value(bool).init(true);
+
 //// functions
 
 //get terminal size given a tty
@@ -283,27 +286,18 @@ pub fn showStdColors() void {
 pub fn show216Colors() void {
     showLabel("216 colors");
 
-    var color_addendum: u8 = 0;
-    var bg_idx: u8 = 0;
-    var fg_idx: u8 = 0;
-
     //show remaining of colors in 6 blocks of 6x6
 
     // 6 rows of color
     for (0..6) |color_shift| {
-        color_addendum = @intCast(color_shift * 36 + 16);
+        const color_addendum = color_shift * 36 + 16;
 
         // colors are pre-organized into blocks
-        var color_idx: u8 = 0;
-        while (color_idx < 36) : (color_idx += 1) {
-            bg_idx = color_idx + color_addendum;
+        for (0..36) |color_idx| {
+            const bg_idx = color_idx + color_addendum;
 
             // invert color id for readability
-            if (color_idx > 17) {
-                fg_idx = 0;
-            } else {
-                fg_idx = 15;
-            }
+            const fg_idx: usize = if (color_idx > 17) 0 else 15;
 
             // display color
             emit(bg[bg_idx]);
@@ -523,17 +517,15 @@ pub fn showDoomFire() void {
     emit(screen_clear);
 
     //scope cache - fire 2 screen buffer
-    var px_hi: u8 = fire_black;
-    var px_lo: u8 = fire_black;
-    var px_prev_hi = px_hi;
-    var px_prev_lo = px_lo;
+    var px_prev_hi = fire_black;
+    var px_prev_lo = fire_black;
 
     //get to work!
     initBuf();
     defer freeBuf();
 
     //when there is an ez way to poll for key stroke...do that.  for now, ctrl+c!
-    while (true) {
+    while (running.load(.SeqCst)) {
         //update fire buf
         for (0..FIRE_H) |y| for (0..FIRE_W) |x| {
             const idx = y * FIRE_W + x;
@@ -571,8 +563,8 @@ pub fn showDoomFire() void {
                 //each character rendered is actually to rows of 'pixels'
                 // - "hi" (current px row => fg char)
                 // - "low" (next row => bg color)
-                px_hi = screen_buf[frame_y * FIRE_W + frame_x];
-                px_lo = screen_buf[(frame_y + 1) * FIRE_W + frame_x];
+                const px_hi = screen_buf[frame_y * FIRE_W + frame_x];
+                const px_lo = screen_buf[(frame_y + 1) * FIRE_W + frame_x];
 
                 // only *update* color if prior color is actually diff
                 if (px_lo != px_prev_lo) {
@@ -598,7 +590,20 @@ pub fn showDoomFire() void {
 // main
 ///////////////////////////////////
 
+fn sigint(_: c_int) callconv(.C) void {
+    running.store(false, .SeqCst);
+}
+
 pub fn main() anyerror!void {
+    const sigact = std.os.system.Sigaction{
+        .handler = .{
+            .handler = sigint,
+        },
+        .mask = std.os.system.filled_sigset,
+        .flags = std.os.system.SA.RESTART,
+    };
+    _ = std.os.system.sigaction(std.os.SIG.INT, &sigact, null);
+
     try initTerm();
     defer complete();
 
