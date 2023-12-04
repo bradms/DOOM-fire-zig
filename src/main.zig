@@ -59,11 +59,7 @@ pub fn initRNG() !void {
 
 // print
 pub fn emit(s: []const u8) void {
-    const sz = stdout.write(s) catch unreachable;
-    if (sz == 0) {
-        return;
-    } // cauze I c
-    return;
+    _ = stdout.write(s) catch unreachable;
 }
 
 // format a string then print
