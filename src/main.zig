@@ -572,7 +572,7 @@ pub fn showDoomFire() void {
             for (0..FIRE_W) |frame_x| {
                 //each character rendered is actually to rows of 'pixels'
                 // - "hi" (current px row => fg char)
-                // - "low" (next row => bg color)
+                // - "lo" (next row => bg color)
                 const px_hi = screen_buf[frame_y * FIRE_W + frame_x];
                 const px_lo = screen_buf[(frame_y + 1) * FIRE_W + frame_x];
 
