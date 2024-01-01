@@ -48,12 +48,8 @@ var rand: std.rand.Random = undefined;
 
 // seed & prep for rng
 pub fn initRNG() !void {
-    //rnd setup -- https://ziglearn.org/chapter-2/#random-numbers
-    var prng = std.rand.DefaultPrng.init(blk: {
-        var seed: u64 = undefined;
-        try std.os.getrandom(std.mem.asBytes(&seed));
-        break :blk seed;
-    });
+    const seed = std.crypto.random.int(u64);
+    var prng = std.rand.DefaultPrng.init(seed);
     rand = prng.random();
 }
 
