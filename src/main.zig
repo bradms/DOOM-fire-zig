@@ -112,14 +112,14 @@ const MAX_COLOR = 256;
 const LAST_COLOR = MAX_COLOR - 1;
 
 const fg = blk: {
-    var result: [MAX_COLOR][]const u8 = undefined;
-    for (0..MAX_COLOR) |idx| result[idx] = std.fmt.comptimePrint("{s}38;5;{d}m", .{ csi, idx });
-    break :blk result;
+    var colors: [MAX_COLOR][]const u8 = undefined;
+    for (0..MAX_COLOR) |idx| colors[idx] = std.fmt.comptimePrint("{s}38;5;{d}m", .{ csi, idx });
+    break :blk colors;
 };
 const bg = blk: {
-    var result: [MAX_COLOR][]const u8 = undefined;
-    for (0..MAX_COLOR) |idx| result[idx] = std.fmt.comptimePrint("{s}48;5;{d}m", .{ csi, idx });
-    break :blk result;
+    var colors: [MAX_COLOR][]const u8 = undefined;
+    for (0..MAX_COLOR) |idx| colors[idx] = std.fmt.comptimePrint("{s}48;5;{d}m", .{ csi, idx });
+    break :blk colors;
 };
 
 const frame_reset = std.fmt.comptimePrint("{s}{s}{s}", .{ cursor_home, bg[0], fg[0] });
